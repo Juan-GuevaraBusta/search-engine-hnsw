@@ -1,0 +1,6 @@
+# Tema del dashboard y ajustes locales (sin telemetria: el proyecto es 100 % local).
+[theme]
+primaryColor = "#d1495b"
+
+[browser]
+gatherUsageStats = false
