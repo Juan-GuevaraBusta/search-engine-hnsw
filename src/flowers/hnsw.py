@@ -55,7 +55,10 @@ class HNSWIndex:
         self.last_query_comparisons = 0
 
     def _normalize(self, vector: ArrayLike) -> NDArray[np.float32]:
-        """Lleva el vector a norma L2 = 1 y rechaza ceros, NaN o una dimensión distinta."""
+        """Lleva el vector a norma L2 = 1 y rechaza ceros, NaN o una dimensión distinta.
+
+        Siguiente paso: Vuelve a `HNSWIndex.add()` o `HNSWIndex.knn_query()` (este archivo).
+        """
         values = np.asarray(vector, dtype=np.float64)
         if values.ndim != 1 or values.size == 0 or not np.isfinite(values).all():
             raise ValueError("Se requiere un vector unidimensional, finito y no vacío")
@@ -69,7 +72,10 @@ class HNSWIndex:
         return (scaled / np.linalg.norm(scaled)).astype(np.float32)
 
     def _similarity(self, query: NDArray[np.float32], node: int) -> float:
-        """Coseno entre la consulta y el nodo. Cuenta una comparación de distancia."""
+        """Coseno entre la consulta y el nodo. Cuenta una comparación de distancia.
+
+        Siguiente paso: Vuelve a `HNSWIndex._search_layer()` (este archivo).
+        """
         self.distance_comparisons += 1
         # Con norma L2 igual a uno, el coseno se reduce a un producto punto.
         return float(np.dot(query, self._vectors[node]))
@@ -81,7 +87,12 @@ class HNSWIndex:
         ef: int,
         layer: int,
     ) -> list[tuple[float, int]]:
-        """Algoritmo 2 del paper. Devuelve pares (coseno, ID) de mejor a peor."""
+        """Algoritmo 2 del paper. Devuelve pares (coseno, ID) de mejor a peor.
+
+        Siguiente paso:
+          1. `HNSWIndex._similarity()` (este archivo), una vez por nodo visitado.
+          2. Devuelve los candidatos a `HNSWIndex.add()` o `HNSWIndex.knn_query()` (este archivo).
+        """
         links = self._layers[layer]
         visited = set(entries)
         # El heap de candidatos saca primero al de mayor coseno. El heap de
@@ -113,7 +124,10 @@ class HNSWIndex:
     def _select_neighbors(
         self, candidates: list[tuple[float, int]], limit: int
     ) -> list[int]:
-        """Algoritmo 4, con relleno de aristas descartadas si sobran cupos."""
+        """Algoritmo 4, con relleno de aristas descartadas si sobran cupos.
+
+        Siguiente paso: Vuelve a `HNSWIndex.add()` (este archivo).
+        """
         ordered = sorted(candidates, key=lambda item: (-item[0], item[1]))
         if len(ordered) <= limit:
             return [node for _, node in ordered]
@@ -132,7 +146,13 @@ class HNSWIndex:
         return selected + discarded[: limit - len(selected)]
 
     def add(self, vector: ArrayLike) -> int:
-        """Inserta un vector y devuelve su ID."""
+        """Inserta un vector y devuelve su ID.
+
+        Siguiente paso:
+          1. `_normalize()` (este archivo).
+          2. `_search_layer()` (este archivo): baja por las capas altas con ef=1 y luego con ef_construction.
+          3. `_select_neighbors()` (este archivo): elige hasta M vecinos y crea las aristas.
+        """
         query = self._normalize(vector)
         node = len(self._vectors)
         self._vectors.append(query)
@@ -176,13 +196,22 @@ class HNSWIndex:
         return node
 
     def add_batch(self, vectors: Iterable[ArrayLike]) -> NDArray[np.intp]:
-        """Inserta los vectores en orden y devuelve sus IDs en ese orden."""
+        """Inserta los vectores en orden y devuelve sus IDs en ese orden.
+
+        Siguiente paso: `HNSWIndex.add()` (este archivo), una vez por vector.
+        """
         return np.fromiter((self.add(vector) for vector in vectors), dtype=np.intp)
 
     def knn_query(
         self, q: ArrayLike, k: int, ef_search: int | None = None
     ) -> tuple[NDArray[np.intp], NDArray[np.float32]]:
-        """Devuelve hasta k IDs y sus cosenos en orden de similitud descendente."""
+        """Devuelve hasta k IDs y sus cosenos en orden de similitud descendente.
+
+        Siguiente paso:
+          1. `HNSWIndex._normalize()` (este archivo).
+          2. `HNSWIndex._search_layer()` (este archivo): baja por las capas con ef=1 y afina en la capa 0 con ef_search.
+          3. Devuelve ids y similitudes a `src/flowers/search.py` → `SearchEngine._knn_hnsw()`.
+        """
         k = index(k)
         ef = self.ef_search if ef_search is None else index(ef_search)
         if k < 0 or ef < 1:
@@ -206,7 +235,10 @@ class HNSWIndex:
         return ids, np.clip(scores, -1.0, 1.0)
 
     def save(self, path: str | Path) -> None:
-        """Guarda los vectores y el grafo en un solo archivo NPZ."""
+        """Guarda los vectores y el grafo en un solo archivo NPZ.
+
+        Siguiente paso: Vuelve a `src/flowers/index.py` → `_guardar_hnsw()`.
+        """
         graph = pickle.dumps(
             {
                 "layers": self._layers,
@@ -225,7 +257,10 @@ class HNSWIndex:
 
     @classmethod
     def load(cls, path: str | Path) -> HNSWIndex:
-        """Restaura un índice guardado. El pickle requiere un archivo de confianza."""
+        """Restaura un índice guardado. El pickle requiere un archivo de confianza.
+
+        Siguiente paso: Vuelve a `src/flowers/search.py` → `_Coleccion.cargar()`.
+        """
         with np.load(path, allow_pickle=False) as archive:
             graph = pickle.loads(archive["graph"].tobytes())
             restored = cls(*graph["params"])

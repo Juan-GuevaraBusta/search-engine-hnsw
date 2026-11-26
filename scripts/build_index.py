@@ -25,6 +25,10 @@ from flowers.index import build_all
 
 
 def main() -> None:
+    """Punto de entrada de `make index`: lee las opciones y construye los dos índices.
+
+    Siguiente paso: `src/flowers/index.py` → `build_all()`.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--max-por-clase", type=int, default=None, help="limita las fotos por clase (pruebas)"

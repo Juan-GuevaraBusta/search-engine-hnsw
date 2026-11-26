@@ -155,13 +155,23 @@ class Servicio:
     # ---- codificar ----------------------------------------------------
 
     def codificar_foto(self, imagen: Any) -> tuple[np.ndarray, float]:
-        """Foto (PIL o ruta) -> (vector SigLIP 1-D, milisegundos)."""
+        """Foto (PIL o ruta) -> (vector SigLIP 1-D, milisegundos).
+
+        Siguiente paso:
+          1. `src/flowers/embeddings.py` → `ImageEncoder.encode_images()`.
+          2. El vector vuelve a `app/streamlit_app.py` → `pestana_foto()`, que llama a `Servicio.consultar_imagenes()`.
+        """
         t0 = time.perf_counter()
         v = np.asarray(self.imagen_enc.encode_images(imagen), dtype=np.float32)[0]
         return v, (time.perf_counter() - t0) * 1000
 
     def codificar_texto_siglip(self, texto: str) -> tuple[np.ndarray, float]:
-        """Frase -> (vector SigLIP, ms). Vive en el mismo espacio que las fotos."""
+        """Frase -> (vector SigLIP, ms). Vive en el mismo espacio que las fotos.
+
+        Siguiente paso:
+          1. `src/flowers/embeddings.py` → `ImageEncoder.encode_text_siglip()`.
+          2. El vector vuelve a `app/streamlit_app.py` → `pestana_texto()`, que llama a `Servicio.consultar_imagenes()`.
+        """
         t0 = time.perf_counter()
         v = np.asarray(self.imagen_enc.encode_text_siglip([texto]), dtype=np.float32)[0]
         return v, (time.perf_counter() - t0) * 1000
@@ -178,7 +188,13 @@ class Servicio:
         ef_search: int,
         ms_codificar: float = 0.0,
     ) -> Consulta:
-        """k-NN con HNSW + k-NN exacto + voto ponderado sobre un vector."""
+        """k-NN con HNSW + k-NN exacto + voto ponderado sobre un vector.
+
+        Siguiente paso:
+          1. `src/flowers/search.py` → `SearchEngine.buscar_imagen()`.
+          2. `src/flowers/search.py` → `knn_hnsw()` y `knn_exacto()` otra vez, para calcular el recall.
+          3. Devuelve la `Consulta` a `app/streamlit_app.py` → `mostrar_resultado()`.
+        """
         k = max(1, min(int(k), self.n_imagenes))
         resultado = self.engine.buscar_imagen(vector, k=k, ef_search=ef_search)
 
@@ -205,7 +221,13 @@ class Servicio:
         )
 
     def consultar_docs(self, texto: str, k: int = 3) -> ConsultaDocs:
-        """Texto -> EmbeddingGemma -> documentos más cercanos con su texto."""
+        """Texto -> EmbeddingGemma -> documentos más cercanos con su texto.
+
+        Siguiente paso:
+          1. `src/flowers/embeddings.py` → `TextEncoder.encode()`: pregunta → vector de EmbeddingGemma.
+          2. `src/flowers/search.py` → `SearchEngine.buscar_docs()`.
+          3. Devuelve los documentos a `app/streamlit_app.py` → `mostrar_docs()`.
+        """
         if not self.hay_docs:
             raise ArtefactosFaltantes("No hay índice de documentos. Ejecuta `make index`.")
         t0 = time.perf_counter()
@@ -278,6 +300,13 @@ def _verificar_artefactos(carpeta: Path) -> None:
 
 def _crear_real(carpeta: Path) -> Servicio:
     # Importación diferida: torch/transformers solo se tocan en la app real.
+    """Crea el servicio real: motor de búsqueda, codificadores y carpeta de artefactos.
+
+    Siguiente paso:
+      1. `src/flowers/search.py` → `SearchEngine.load()`.
+      2. `src/flowers/embeddings.py` → `ImageEncoder()` y `TextEncoder()`.
+      3. Devuelve el `Servicio` a `app/streamlit_app.py` → `obtener_servicio()`.
+    """
     from flowers.embeddings import ImageEncoder, TextEncoder
 
     return Servicio(SearchEngine.load(carpeta), ImageEncoder(), TextEncoder(), carpeta)
@@ -286,7 +315,12 @@ def _crear_real(carpeta: Path) -> Servicio:
 def crear_servicio(
     artifacts_dir: str | Path | None = None, fabrica: str | None = None
 ) -> Servicio:
-    """Fábrica del servicio. Respeta ``FLOWERS_SERVICE_FACTORY`` para pruebas."""
+    """Fábrica del servicio. Respeta ``FLOWERS_SERVICE_FACTORY`` para pruebas.
+
+    Siguiente paso:
+      1. `_verificar_artefactos()` (este archivo): comprueba que existan los índices.
+      2. `_crear_real()` (este archivo).
+    """
     carpeta = Path(artifacts_dir) if artifacts_dir else config.artifacts_dir()
     _verificar_artefactos(carpeta)
     fabrica = fabrica if fabrica is not None else os.environ.get(VARIABLE_FABRICA, "")

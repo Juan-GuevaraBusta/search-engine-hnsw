@@ -125,7 +125,10 @@ def _guardar_json(ruta: Path, datos: Any) -> None:
 
 
 def _guardar_hnsw(ruta: Path, indice: HNSWIndex) -> None:
-    """Guarda el índice HNSW en un NPZ y lo publica con un renombre atómico."""
+    """Guarda el índice HNSW en un NPZ y lo publica con un renombre atómico.
+
+    Siguiente paso: `src/flowers/hnsw.py` → `HNSWIndex.save()`.
+    """
     with _archivo_temporal(ruta) as destino:
         tmp = Path(destino.name)
     indice.save(tmp)
@@ -169,7 +172,10 @@ def _leer_cache(archivo: Path) -> np.ndarray | None:
 
 
 def _normalizar(vectores: np.ndarray, filas: int) -> np.ndarray:
-    """Normaliza a norma 1 y exige exactamente ``filas`` vectores finitos."""
+    """Normaliza a norma 1 y exige exactamente ``filas`` vectores finitos.
+
+    Siguiente paso: `src/flowers/embeddings.py` → `l2_normalize()`. Luego vuelve a quien llamó (`_vectorizar_imagenes()` o `construir_documentos()`).
+    """
     matriz = l2_normalize(vectores)
     if matriz.shape[0] != filas or matriz.shape[1] == 0:
         raise ValueError(f"Se esperaban {filas} vectores, llegó una matriz {matriz.shape}")
@@ -189,6 +195,10 @@ def _vectorizar_imagenes(
     """Codifica fotos por lotes, guardando cada vector en el cache.
 
     Devuelve una matriz ``(n, d)`` float32 en el mismo orden que ``muestras``.
+
+    Siguiente paso:
+      1. `src/flowers/embeddings.py` → `ImageEncoder.encode_images()`.
+      2. Al volver: `_normalizar()` (este archivo) y guarda cada vector en la caché.
     """
     cache = _dir_cache(directorio, codificador)
     cache.mkdir(parents=True, exist_ok=True)
@@ -227,7 +237,10 @@ def _vectorizar_imagenes(
 
 
 def _construir_hnsw(vectores: np.ndarray, *, M: int, ef_construction: int) -> HNSWIndex:
-    """Inserta los vectores EN ORDEN: la fila i obtiene el id i."""
+    """Inserta los vectores EN ORDEN: la fila i obtiene el id i.
+
+    Siguiente paso: `src/flowers/hnsw.py` → `HNSWIndex.add_batch()`.
+    """
     indice = HNSWIndex(M=M, ef_construction=ef_construction)
     if len(vectores):
         indice.add_batch(vectores)
@@ -263,7 +276,14 @@ def construir_imagenes(
     ef_construction: int = EF_CONSTRUCTION,
     progress: bool = True,
 ) -> dict[str, Any]:
-    """Construye y guarda el índice de fotos (train) y los vectores del holdout."""
+    """Construye y guarda el índice de fotos (train) y los vectores del holdout.
+
+    Siguiente paso:
+      1. `src/flowers/data.py` → `listar_imagenes()`.
+      2. `src/flowers/data.py` → `split_estratificado()`.
+      3. `_vectorizar_imagenes()` (este archivo).
+      4. `_construir_hnsw()` (este archivo).
+    """
     todas = _limitar_por_clase(listar_imagenes(imagenes_dir), max_por_clase)
     if not todas:
         raise ValueError("No se encontraron imágenes para indexar")
@@ -305,7 +325,13 @@ def construir_documentos(
     ef_construction: int = EF_CONSTRUCTION,
     progress: bool = True,
 ) -> dict[str, Any]:
-    """Construye y guarda el índice de documentos ``.txt`` (todos se indexan)."""
+    """Construye y guarda el índice de documentos ``.txt`` (todos se indexan).
+
+    Siguiente paso:
+      1. `src/flowers/data.py` → `listar_documentos()`.
+      2. `src/flowers/embeddings.py` → `TextEncoder.encode()`.
+      3. `_normalizar()` y `_construir_hnsw()` (este archivo).
+    """
     docs = listar_documentos(documentos_dir)
     if not docs:
         raise ValueError("No se encontraron documentos .txt para indexar")
@@ -344,6 +370,11 @@ def build_all(
     Todos los argumentos salvo ``progress`` son opcionales: por defecto se usan
     las rutas de ``config`` y los codificadores reales. ``max_por_clase`` limita
     las fotos por clase (útil para pruebas rápidas). Devuelve un resumen.
+
+    Siguiente paso:
+      1. `src/flowers/embeddings.py` → `ImageEncoder()` y `TextEncoder()` (solo se crean; los pesos cargan después).
+      2. `construir_imagenes()` (este archivo): índice de fotos.
+      3. `construir_documentos()` (este archivo): índice de documentos.
     """
     directorio = Path(artifacts_dir) if artifacts_dir is not None else config.artifacts_dir()
     directorio.mkdir(parents=True, exist_ok=True)

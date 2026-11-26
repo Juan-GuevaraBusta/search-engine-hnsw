@@ -47,6 +47,8 @@ def listar_imagenes(directorio: Path | None = None) -> list[Muestra]:
 
     Solo entran las clases de :data:`flowers.config.CLASSES` y los archivos
     con sufijo de imagen. El ``id`` es la ruta relativa con ``/``.
+
+    Siguiente paso: Devuelve las muestras a `src/flowers/index.py` → `construir_imagenes()`, que sigue con `split_estratificado()`.
     """
     raiz = _exigir_directorio(images_dir() if directorio is None else directorio, "imágenes")
     encontradas: list[Muestra] = []
@@ -73,6 +75,8 @@ def listar_documentos(directorio: Path | None = None) -> list[Muestra]:
 
     ``rose3.txt`` → clase ``rose``. Se descarta un archivo cuya clase no
     esté en :data:`flowers.config.CLASSES`. El ``id`` es el nombre del archivo.
+
+    Siguiente paso: Devuelve los documentos a `src/flowers/index.py` → `construir_documentos()`, que lee los textos y llama a `src/flowers/embeddings.py` → `TextEncoder.encode()`.
     """
     raiz = _exigir_directorio(docs_dir() if directorio is None else directorio, "documentos")
     encontradas: list[Muestra] = []
@@ -99,6 +103,8 @@ def split_estratificado(
     (``round`` de Python: empate al entero par). Dentro de cada clase el
     orden de entrada no importa: se ordena por ``id`` y luego se baraja
     con ``semilla``. Train y holdout salen ordenados por ``id``.
+
+    Siguiente paso: Devuelve la partición a `src/flowers/index.py` → `construir_imagenes()`, que sigue con `_vectorizar_imagenes()`.
     """
     if not 0 < fraccion < 1:
         raise ValueError(f"fraccion debe estar entre 0 y 1, no {fraccion}")

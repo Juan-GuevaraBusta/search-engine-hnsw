@@ -72,7 +72,10 @@ class _Coleccion:
 
     @classmethod
     def cargar(cls, carpeta: Path, prefijo: str) -> _Coleccion:
-        """Lee vectores, meta e índice HNSW de un prefijo (``images`` o ``docs``)."""
+        """Lee vectores, meta e índice HNSW de un prefijo (``images`` o ``docs``).
+
+        Siguiente paso: `src/flowers/hnsw.py` → `HNSWIndex.load()`. Luego vuelve a `SearchEngine.load()` (este archivo).
+        """
         vectores = np.load(carpeta / f"{prefijo}_vectors.npy")
         meta = json.loads((carpeta / f"{prefijo}_meta.json").read_text(encoding="utf-8"))
         hnsw = HNSWIndex.load(carpeta / f"{prefijo}_hnsw.npz")
@@ -98,7 +101,12 @@ class SearchEngine:
 
     @classmethod
     def load(cls, artifacts_dir: str | Path | None = None) -> SearchEngine:
-        """Carga los artefactos. Los documentos son opcionales."""
+        """Carga los artefactos. Los documentos son opcionales.
+
+        Siguiente paso:
+          1. `_Coleccion.cargar()` (este archivo): una vez para fotos y otra para documentos.
+          2. Entrega el motor a `src/flowers/service.py` → `_crear_real()`.
+        """
         carpeta = Path(artifacts_dir) if artifacts_dir is not None else config.artifacts_dir()
         imagenes = _Coleccion.cargar(carpeta, "images")
         hay_docs = all(
@@ -118,18 +126,26 @@ class SearchEngine:
         """k vecinos aproximados con HNSW.
 
         Devuelve (ids, similitudes coseno, nº de comparaciones del grafo).
+
+        Siguiente paso: `SearchEngine._knn_hnsw()` (este archivo).
         """
         return self._knn_hnsw(self._imagenes, q, k, ef_search)
 
     def knn_exacto(self, q: ArrayLike, k: int) -> tuple[NDArray[np.intp], NDArray[np.float32]]:
-        """k vecinos exactos por fuerza bruta (referencia para medir HNSW)."""
+        """k vecinos exactos por fuerza bruta (referencia para medir HNSW).
+
+        Siguiente paso: `SearchEngine._knn_exacto()` (este archivo).
+        """
         return self._knn_exacto(self._imagenes, q, k)
 
     @staticmethod
     def _knn_hnsw(
         coleccion: _Coleccion, q: ArrayLike, k: int, ef_search: int
     ) -> tuple[NDArray[np.intp], NDArray[np.float32], int]:
-        """Consulta el HNSW de ``coleccion`` y adjunta cuántas comparaciones hizo."""
+        """Consulta el HNSW de ``coleccion`` y adjunta cuántas comparaciones hizo.
+
+        Siguiente paso: `src/flowers/hnsw.py` → `HNSWIndex.knn_query()`. Luego vuelve a quien llamó (`knn_hnsw()` o `buscar_docs()`).
+        """
         ids, sims = coleccion.hnsw.knn_query(q, k, ef_search=ef_search)
         return ids, sims, coleccion.hnsw.last_query_comparisons
 
@@ -137,7 +153,10 @@ class SearchEngine:
     def _knn_exacto(
         coleccion: _Coleccion, q: ArrayLike, k: int
     ) -> tuple[NDArray[np.intp], NDArray[np.float32]]:
-        """k vecinos exactos. Convierte la distancia coseno de sklearn en similitud."""
+        """k vecinos exactos. Convierte la distancia coseno de sklearn en similitud.
+
+        Siguiente paso: `_Coleccion.exacto()` (este archivo): scikit-learn por fuerza bruta. Solo sirve de referencia para medir a HNSW.
+        """
         consulta = np.asarray(q, dtype=np.float32).reshape(1, -1)
         k = min(int(k), len(coleccion.vectores))
         distancias, ids = coleccion.exacto().kneighbors(consulta, n_neighbors=k)
@@ -158,6 +177,8 @@ class SearchEngine:
         menor confianza; las confianzas suman 1. Si todas las similitudes
         son <= 0 no hay información para ponderar y se reparte el voto por
         igual entre los vecinos.
+
+        Siguiente paso: Vuelve a `SearchEngine.buscar_imagen()` (este archivo), que arma el `ResultadoImagen`.
         """
         ids = np.asarray(ids, dtype=np.intp)
         pesos = np.maximum(0.0, np.asarray(sims, dtype=np.float64))
@@ -181,7 +202,14 @@ class SearchEngine:
     # ------------------------------------------------------------------
 
     def buscar_imagen(self, vector: ArrayLike, k: int = 10, ef_search: int = 50) -> ResultadoImagen:
-        """¿Qué flor es? Vecinos, confianza por clase, ganadora y tiempos."""
+        """¿Qué flor es? Vecinos, confianza por clase, ganadora y tiempos.
+
+        Siguiente paso:
+          1. `SearchEngine.knn_hnsw()` (este archivo): vecinos aproximados.
+          2. `SearchEngine.knn_exacto()` (este archivo): referencia exacta.
+          3. `SearchEngine.clasificar()` (este archivo): voto ponderado y confianza.
+          4. Devuelve el resultado a `src/flowers/service.py` → `Servicio.consultar_imagenes()`.
+        """
         t0 = time.perf_counter()
         ids, sims, comparaciones = self.knn_hnsw(vector, k, ef_search)
         ms_hnsw = (time.perf_counter() - t0) * 1000
@@ -210,7 +238,12 @@ class SearchEngine:
         )
 
     def buscar_docs(self, vector: ArrayLike, k: int = 3) -> list[DocumentoVecino]:
-        """Documentos más parecidos a la consulta, con similitud y clase."""
+        """Documentos más parecidos a la consulta, con similitud y clase.
+
+        Siguiente paso:
+          1. `SearchEngine._knn_hnsw()` (este archivo), sobre el índice de documentos.
+          2. Devuelve los documentos a `src/flowers/service.py` → `Servicio.consultar_docs()`.
+        """
         if self._docs is None:
             raise RuntimeError("No hay artefactos de documentos cargados")
         ids, sims, _ = self._knn_hnsw(self._docs, vector, k, ef_search=max(k, 50))

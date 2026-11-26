@@ -70,7 +70,10 @@ def resolve_device(device: str | None = None) -> str:
 
 
 def l2_normalize(vectors: np.ndarray) -> np.ndarray:
-    """Devuelve una copia ``float32`` con cada fila de norma 1."""
+    """Devuelve una copia ``float32`` con cada fila de norma 1.
+
+    Siguiente paso: Vuelve a `encode_images()`, `encode_text_siglip()` o `_encode_gemma()` (este archivo). El vector sigue en `src/flowers/index.py` → `_normalizar()` (construcción) o en `src/flowers/service.py` → `Servicio.codificar_*()` / `consultar_docs()` (consulta).
+    """
     matrix = np.asarray(vectors, dtype=np.float32)
     if matrix.ndim == 1:
         matrix = matrix.reshape(1, -1)
@@ -108,6 +111,8 @@ def _pooled(output: object) -> object:
 
     Acepta un tensor directo o el atributo ``pooler_output``. Otra forma
     significa que el modelo no devolvió un vector usable.
+
+    Siguiente paso: `_to_numpy()` (este archivo).
     """
     import torch
 
@@ -123,7 +128,10 @@ def _pooled(output: object) -> object:
 
 
 def _to_numpy(pooled: object) -> np.ndarray:
-    """Copia un tensor a ``float32`` en CPU, desconectado del grafo de autograd."""
+    """Copia un tensor a ``float32`` en CPU, desconectado del grafo de autograd.
+
+    Siguiente paso: Vuelve a `ImageEncoder._encode_image_batch()` o `_encode_text_batch()` (este archivo).
+    """
     import torch
 
     if not isinstance(pooled, torch.Tensor):
@@ -155,7 +163,14 @@ class ImageEncoder:
         paths_or_pil: str | Path | Image.Image | Sequence[str | Path | Image.Image],
         batch_size: int = 8,
     ) -> np.ndarray:
-        """Codifica rutas o imágenes PIL. Forma ``(n, d)``, norma 1."""
+        """Codifica rutas o imágenes PIL. Forma ``(n, d)``, norma 1.
+
+        Siguiente paso:
+          1. `_to_rgb()` (este archivo): abre cada foto en RGB.
+          2. `ImageEncoder._ensure_loaded()` (este archivo): carga SigLIP la primera vez.
+          3. `ImageEncoder._encode_image_batch()` (este archivo): foto → vector.
+          4. `l2_normalize()` (este archivo): deja la norma en 1.
+        """
         images = [_to_rgb(item) for item in _as_items(paths_or_pil)]
         if not images:
             self._ensure_loaded()
@@ -175,6 +190,12 @@ class ImageEncoder:
 
         El relleno es ``max_length``: así se entrenó el modelo (el id de
         pad es el mismo que el de fin de frase).
+
+        Siguiente paso:
+          1. `ImageEncoder._ensure_loaded()` (este archivo).
+          2. `ImageEncoder._encode_text_batch()` (este archivo): frase → vector.
+          3. `l2_normalize()` (este archivo).
+          4. El vector vuelve a `src/flowers/service.py` → `Servicio.codificar_texto_siglip()`.
         """
         rows = _as_strings(texts)
         if not rows:
@@ -187,7 +208,10 @@ class ImageEncoder:
         return l2_normalize(np.concatenate(parts, axis=0))
 
     def _ensure_loaded(self) -> None:
-        """Carga SigLIP una sola vez y reutiliza la copia en caché del proceso."""
+        """Carga SigLIP una sola vez y reutiliza la copia en caché del proceso.
+
+        Siguiente paso: `_load_siglip()` (este archivo).
+        """
         if self._model is not None and self._processor is not None:
             return
         model, processor = _load_siglip(self.model_id, self.device)
@@ -207,7 +231,12 @@ class ImageEncoder:
         raise RuntimeError(f"no se pudo leer la dimensión de {self.model_id}")
 
     def _encode_image_batch(self, images: Sequence[Image.Image]) -> np.ndarray:
-        """Pasa un lote de fotos por la torre visual de SigLIP. Aún sin normalizar."""
+        """Pasa un lote de fotos por la torre visual de SigLIP. Aún sin normalizar.
+
+        Siguiente paso:
+          1. `_pooled()` y luego `_to_numpy()` (este archivo).
+          2. Vuelve a `ImageEncoder.encode_images()`, que llama a `l2_normalize()`.
+        """
         import torch
 
         processor = self._processor
@@ -219,7 +248,10 @@ class ImageEncoder:
         return _to_numpy(_pooled(output))
 
     def _encode_text_batch(self, texts: Sequence[str]) -> np.ndarray:
-        """Pasa un lote de frases por la torre de texto de SigLIP. Aún sin normalizar."""
+        """Pasa un lote de frases por la torre de texto de SigLIP. Aún sin normalizar.
+
+        Siguiente paso: `_pooled()` y luego `_to_numpy()` (este archivo).
+        """
         import torch
 
         processor = self._processor
@@ -264,7 +296,12 @@ class TextEncoder:
         self._ready = False
 
     def encode(self, texts: Sequence[str], batch_size: int = 32) -> np.ndarray:
-        """Codifica textos. Forma ``(n, d)``, norma 1."""
+        """Codifica textos. Forma ``(n, d)``, norma 1.
+
+        Siguiente paso:
+          1. `TextEncoder._ensure_loaded()` (este archivo): carga EmbeddingGemma.
+          2. `TextEncoder._encode_gemma()` (este archivo), o `ImageEncoder.encode_text_siglip()` si se usa el respaldo.
+        """
         rows = _as_strings(texts)
         self._ensure_loaded()
         if not rows:
@@ -276,7 +313,10 @@ class TextEncoder:
         return self._siglip.encode_text_siglip(rows, batch_size=batch_size)
 
     def _ensure_loaded(self) -> None:
-        """Intenta EmbeddingGemma. Si no hay acceso y el respaldo es SigLIP, cambia de backend."""
+        """Intenta EmbeddingGemma. Si no hay acceso y el respaldo es SigLIP, cambia de backend.
+
+        Siguiente paso: `_try_load_gemma()` (este archivo).
+        """
         if self._ready:
             return
         model, error = _try_load_gemma(self.model_id, self.device)
@@ -295,7 +335,10 @@ class TextEncoder:
         self._ready = True
 
     def _encode_gemma(self, texts: Sequence[str], batch_size: int) -> np.ndarray:
-        """Codifica con EmbeddingGemma y vuelve a normalizar por si el modelo no lo hizo."""
+        """Codifica con EmbeddingGemma y vuelve a normalizar por si el modelo no lo hizo.
+
+        Siguiente paso: `l2_normalize()` (este archivo). El vector sigue en `src/flowers/index.py` → `construir_documentos()` (construcción) o `src/flowers/service.py` → `Servicio.consultar_docs()` (consulta).
+        """
         model = self._gemma
         raw = model.encode(
             list(texts),
@@ -330,7 +373,10 @@ def _resolve_fallback(fallback: str | None) -> str:
 
 
 def _load_siglip(model_id: str, device: str) -> tuple[object, object]:
-    """Devuelve modelo y procesador de SigLIP, reutilizando la caché del proceso."""
+    """Devuelve modelo y procesador de SigLIP, reutilizando la caché del proceso.
+
+    Siguiente paso: Vuelve a `ImageEncoder._ensure_loaded()` (este archivo). Después el flujo sigue en `_encode_image_batch()` o `_encode_text_batch()`.
+    """
     key = (model_id, device)
     cached = _SIGLIP_CACHE.get(key)
     if cached is not None:
@@ -346,7 +392,10 @@ def _load_siglip(model_id: str, device: str) -> tuple[object, object]:
 
 
 def _try_load_gemma(model_id: str, device: str) -> tuple[object | None, BaseException | None]:
-    """Carga EmbeddingGemma. Un error de acceso se recuerda; cualquier otro se propaga."""
+    """Carga EmbeddingGemma. Un error de acceso se recuerda; cualquier otro se propaga.
+
+    Siguiente paso: Vuelve a `TextEncoder._ensure_loaded()` (este archivo).
+    """
     key = (model_id, device)
     cached = _GEMMA_CACHE.get(key)
     if cached is not None:
@@ -377,7 +426,10 @@ def _as_items(
 
 
 def _to_rgb(item: str | Path | Image.Image) -> Image.Image:
-    """Abre una ruta o convierte una imagen PIL a RGB de tres canales."""
+    """Abre una ruta o convierte una imagen PIL a RGB de tres canales.
+
+    Siguiente paso: Vuelve a `ImageEncoder.encode_images()` (este archivo).
+    """
     if isinstance(item, Image.Image):
         return item.convert("RGB")
     with Image.open(item) as image:

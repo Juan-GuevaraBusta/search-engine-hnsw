@@ -65,7 +65,10 @@ def nombre(clase: str) -> str:
 
 @st.cache_resource(show_spinner="Cargando índices y modelos (solo la primera vez)...")
 def obtener_servicio(carpeta: str, fabrica: str) -> Servicio:
-    """Crea el servicio una vez por (carpeta, fábrica) y lo reutiliza."""
+    """Crea el servicio una vez por (carpeta, fábrica) y lo reutiliza.
+
+    Siguiente paso: `src/flowers/service.py` → `crear_servicio()`.
+    """
     return crear_servicio(carpeta, fabrica)
 
 
@@ -114,7 +117,10 @@ def grafico_confianza(confianzas: dict[str, float], ganadora: str) -> go.Figure:
 
 
 def mostrar_resultado(c: Consulta) -> None:
-    """Clase ganadora, gráfico de confianza y cuadrícula de vecinos."""
+    """Clase ganadora, gráfico de confianza y cuadrícula de vecinos.
+
+    Siguiente paso: Fin del recorrido: pinta barras de confianza, vecinos y comparación con el exacto.
+    """
     r = c.resultado
     gana = r.confianzas.get(r.clase, 0.0) * 100
     izq, der = st.columns([1, 2])
@@ -141,7 +147,10 @@ def mostrar_resultado(c: Consulta) -> None:
 
 
 def mostrar_docs(servicio: Servicio, pregunta: str, k_docs: int) -> None:
-    """Documentos más cercanos con EmbeddingGemma."""
+    """Documentos más cercanos con EmbeddingGemma.
+
+    Siguiente paso: `src/flowers/service.py` → `Servicio.consultar_docs()`.
+    """
     st.subheader("Documentos más cercanos (EmbeddingGemma)")
     if not servicio.hay_docs:
         st.info("No hay índice de documentos. Ejecuta `make index`.")
@@ -183,6 +192,13 @@ def _usar_holdout(servicio: Servicio, idx: int) -> None:
 
 
 def pestana_foto(servicio: Servicio, k: int, ef: int) -> Consulta | None:
+    """Pestaña de foto: codifica la foto subida y muestra la clase y los vecinos.
+
+    Siguiente paso:
+      1. `src/flowers/service.py` → `Servicio.codificar_foto()`.
+      2. `src/flowers/service.py` → `Servicio.consultar_imagenes()`.
+      3. `mostrar_resultado()` (este archivo).
+    """
     st.markdown("Sube una foto de una flor y mira qué vecinos encuentra HNSW.")
     subida = st.file_uploader("Foto (jpg, png...)", type=["jpg", "jpeg", "png", "webp"], key="subida")
 
@@ -271,6 +287,13 @@ def _poner_pregunta(texto: str) -> None:
 
 
 def pestana_texto(servicio: Servicio, k: int, ef: int) -> Consulta | None:
+    """Pestaña de preguntas: codifica la frase y muestra fotos y documentos cercanos.
+
+    Siguiente paso:
+      1. `src/flowers/service.py` → `Servicio.codificar_texto_siglip()`.
+      2. `src/flowers/service.py` → `Servicio.consultar_imagenes()`, y `mostrar_resultado()` (este archivo).
+      3. `mostrar_docs()` (este archivo): la rama de documentos.
+    """
     st.markdown(
         "Escribe una pregunta o descripción. Funciona mejor en **inglés** "
         "(SigLIP se entrenó con texto en inglés y los documentos están en inglés)."
@@ -402,6 +425,12 @@ def panel_hnsw_vs_exacto(c: Consulta | None) -> None:
 
 
 def main() -> None:
+    """Punto de entrada del dashboard: carga el servicio y dibuja la barra lateral y las pestañas.
+
+    Siguiente paso:
+      1. `obtener_servicio()` (este archivo): carga índices y modelos una sola vez.
+      2. `pestana_foto()`, `pestana_texto()` o `pestana_como_funciona()` (este archivo), según la pestaña.
+    """
     st.set_page_config(page_title="Buscador de flores con HNSW", page_icon="🌼", layout="wide")
     st.title("🌼 Buscador de flores con HNSW")
     st.caption("Todo corre en tu computadora: SigLIP + EmbeddingGemma + un HNSW hecho en NumPy.")
