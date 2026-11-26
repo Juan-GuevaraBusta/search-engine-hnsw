@@ -84,14 +84,17 @@ class IndiceCargado:
 
 
 def _ruta_vectores(nombre: str, directorio: Path) -> Path:
+    """Ruta de ``{nombre}_vectors.npy`` dentro del directorio de artefactos."""
     return directorio / f"{nombre}_vectors.npy"
 
 
 def _ruta_meta(nombre: str, directorio: Path) -> Path:
+    """Ruta de ``{nombre}_meta.json`` dentro del directorio de artefactos."""
     return directorio / f"{nombre}_meta.json"
 
 
 def _ruta_hnsw(nombre: str, directorio: Path) -> Path:
+    """Ruta de ``{nombre}_hnsw.npz`` dentro del directorio de artefactos."""
     return directorio / f"{nombre}_hnsw.npz"
 
 
@@ -102,16 +105,19 @@ def _ruta_hnsw(nombre: str, directorio: Path) -> Path:
 
 
 def _archivo_temporal(ruta: Path):
+    """Abre un temporal junto a ``ruta``, para poder renombrarlo de forma atómica."""
     return NamedTemporaryFile(dir=ruta.parent, prefix=f".{ruta.stem}-", delete=False)
 
 
 def _guardar_npy(ruta: Path, vectores: np.ndarray) -> None:
+    """Escribe una matriz ``.npy`` y la publica con un renombre atómico."""
     with _archivo_temporal(ruta) as destino:
         np.save(destino, vectores)
     os.replace(destino.name, ruta)
 
 
 def _guardar_json(ruta: Path, datos: Any) -> None:
+    """Escribe JSON en UTF-8 y lo publica con un renombre atómico."""
     with _archivo_temporal(ruta) as destino:
         tmp = Path(destino.name)
     tmp.write_text(json.dumps(datos, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -119,6 +125,7 @@ def _guardar_json(ruta: Path, datos: Any) -> None:
 
 
 def _guardar_hnsw(ruta: Path, indice: HNSWIndex) -> None:
+    """Guarda el índice HNSW en un NPZ y lo publica con un renombre atómico."""
     with _archivo_temporal(ruta) as destino:
         tmp = Path(destino.name)
     indice.save(tmp)
@@ -137,8 +144,11 @@ def _dir_cache(directorio: Path, codificador: Any) -> Path:
 
 
 def _archivo_cache(cache: Path, muestra: Muestra) -> Path:
-    # La posición puede cambiar entre builds. La ruta y el estado del archivo
-    # distinguen corpus con nombres iguales y fotos que se editaron.
+    """Nombre de cache de una foto: hash de ruta, tamaño y fechas del archivo.
+
+    La posición puede cambiar entre builds. La ruta y el estado del archivo
+    distinguen corpus con nombres iguales y fotos que se editaron.
+    """
     ruta = muestra.ruta.resolve()
     estado = ruta.stat()
     clave = json.dumps([str(ruta), estado.st_size, estado.st_mtime_ns, estado.st_ctime_ns])
@@ -159,6 +169,7 @@ def _leer_cache(archivo: Path) -> np.ndarray | None:
 
 
 def _normalizar(vectores: np.ndarray, filas: int) -> np.ndarray:
+    """Normaliza a norma 1 y exige exactamente ``filas`` vectores finitos."""
     matriz = l2_normalize(vectores)
     if matriz.shape[0] != filas or matriz.shape[1] == 0:
         raise ValueError(f"Se esperaban {filas} vectores, llegó una matriz {matriz.shape}")
@@ -224,6 +235,7 @@ def _construir_hnsw(vectores: np.ndarray, *, M: int, ef_construction: int) -> HN
 
 
 def _meta_imagenes(muestras: tuple[Muestra, ...] | list[Muestra]) -> list[dict[str, Any]]:
+    """Metadatos de fotos en el mismo orden que los ids del HNSW: id, ruta y clase."""
     return [{"id": i, "ruta": str(m.ruta), "clase": m.clase} for i, m in enumerate(muestras)]
 
 
@@ -408,5 +420,6 @@ def load_holdout(artifacts_dir: Path | None = None) -> tuple[np.ndarray, list[di
 
 
 def _log(progress: bool, mensaje: str) -> None:
+    """Imprime el avance en stderr cuando ``progress`` está activo."""
     if progress:
         print(mensaje, file=sys.stderr, flush=True)

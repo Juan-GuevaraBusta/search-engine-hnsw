@@ -72,6 +72,7 @@ class _Coleccion:
 
     @classmethod
     def cargar(cls, carpeta: Path, prefijo: str) -> _Coleccion:
+        """Lee vectores, meta e índice HNSW de un prefijo (``images`` o ``docs``)."""
         vectores = np.load(carpeta / f"{prefijo}_vectors.npy")
         meta = json.loads((carpeta / f"{prefijo}_meta.json").read_text(encoding="utf-8"))
         hnsw = HNSWIndex.load(carpeta / f"{prefijo}_hnsw.npz")
@@ -91,6 +92,7 @@ class SearchEngine:
     """Busca vecinos en las colecciones de imágenes y documentos."""
 
     def __init__(self, imagenes: _Coleccion, docs: _Coleccion | None = None) -> None:
+        """Guarda la colección de fotos y, si existe, la de documentos."""
         self._imagenes = imagenes
         self._docs = docs
 
@@ -127,6 +129,7 @@ class SearchEngine:
     def _knn_hnsw(
         coleccion: _Coleccion, q: ArrayLike, k: int, ef_search: int
     ) -> tuple[NDArray[np.intp], NDArray[np.float32], int]:
+        """Consulta el HNSW de ``coleccion`` y adjunta cuántas comparaciones hizo."""
         ids, sims = coleccion.hnsw.knn_query(q, k, ef_search=ef_search)
         return ids, sims, coleccion.hnsw.last_query_comparisons
 
@@ -134,6 +137,7 @@ class SearchEngine:
     def _knn_exacto(
         coleccion: _Coleccion, q: ArrayLike, k: int
     ) -> tuple[NDArray[np.intp], NDArray[np.float32]]:
+        """k vecinos exactos. Convierte la distancia coseno de sklearn en similitud."""
         consulta = np.asarray(q, dtype=np.float32).reshape(1, -1)
         k = min(int(k), len(coleccion.vectores))
         distancias, ids = coleccion.exacto().kneighbors(consulta, n_neighbors=k)

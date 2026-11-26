@@ -34,6 +34,12 @@ class HNSWIndex:
         ef_search: int = 50,
         seed: int | None = 42,
     ) -> None:
+        """Prepara un grafo vacío.
+
+        ``M`` es el grado de las capas altas. ``ef_construction`` y
+        ``ef_search`` fijan cuántos candidatos se exploran al insertar y al
+        consultar. ``seed`` hace reproducible la altura aleatoria de cada nodo.
+        """
         self.M = index(M)
         self.ef_construction = index(ef_construction)
         self.ef_search = index(ef_search)
@@ -49,6 +55,7 @@ class HNSWIndex:
         self.last_query_comparisons = 0
 
     def _normalize(self, vector: ArrayLike) -> NDArray[np.float32]:
+        """Lleva el vector a norma L2 = 1 y rechaza ceros, NaN o una dimensión distinta."""
         values = np.asarray(vector, dtype=np.float64)
         if values.ndim != 1 or values.size == 0 or not np.isfinite(values).all():
             raise ValueError("Se requiere un vector unidimensional, finito y no vacío")
@@ -62,6 +69,7 @@ class HNSWIndex:
         return (scaled / np.linalg.norm(scaled)).astype(np.float32)
 
     def _similarity(self, query: NDArray[np.float32], node: int) -> float:
+        """Coseno entre la consulta y el nodo. Cuenta una comparación de distancia."""
         self.distance_comparisons += 1
         # Con norma L2 igual a uno, el coseno se reduce a un producto punto.
         return float(np.dot(query, self._vectors[node]))

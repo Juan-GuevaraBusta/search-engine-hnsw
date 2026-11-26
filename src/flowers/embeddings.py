@@ -104,6 +104,11 @@ def is_model_access_error(exc: BaseException) -> bool:
 
 
 def _pooled(output: object) -> object:
+    """Saca el embedding de la salida de SigLIP.
+
+    Acepta un tensor directo o el atributo ``pooler_output``. Otra forma
+    significa que el modelo no devolvió un vector usable.
+    """
     import torch
 
     if isinstance(output, torch.Tensor):
@@ -118,6 +123,7 @@ def _pooled(output: object) -> object:
 
 
 def _to_numpy(pooled: object) -> np.ndarray:
+    """Copia un tensor a ``float32`` en CPU, desconectado del grafo de autograd."""
     import torch
 
     if not isinstance(pooled, torch.Tensor):
@@ -133,6 +139,7 @@ class ImageEncoder:
         model_id: str = SIGLIP_MODEL_ID,
         device: str | None = None,
     ) -> None:
+        """Guarda modelo y dispositivo. Los pesos se descargan en la primera codificación."""
         self.model_id = model_id
         self.device = resolve_device(device)
         self._model: object | None = None
@@ -180,6 +187,7 @@ class ImageEncoder:
         return l2_normalize(np.concatenate(parts, axis=0))
 
     def _ensure_loaded(self) -> None:
+        """Carga SigLIP una sola vez y reutiliza la copia en caché del proceso."""
         if self._model is not None and self._processor is not None:
             return
         model, processor = _load_siglip(self.model_id, self.device)
@@ -187,6 +195,7 @@ class ImageEncoder:
         self._processor = processor
 
     def _width(self) -> int:
+        """Lee la dimensión del embedding en la configuración ya cargada."""
         config = getattr(self._model, "config", None)
         for value in (
             getattr(config, "projection_dim", None),
@@ -198,6 +207,7 @@ class ImageEncoder:
         raise RuntimeError(f"no se pudo leer la dimensión de {self.model_id}")
 
     def _encode_image_batch(self, images: Sequence[Image.Image]) -> np.ndarray:
+        """Pasa un lote de fotos por la torre visual de SigLIP. Aún sin normalizar."""
         import torch
 
         processor = self._processor
@@ -209,6 +219,7 @@ class ImageEncoder:
         return _to_numpy(_pooled(output))
 
     def _encode_text_batch(self, texts: Sequence[str]) -> np.ndarray:
+        """Pasa un lote de frases por la torre de texto de SigLIP. Aún sin normalizar."""
         import torch
 
         processor = self._processor
@@ -242,6 +253,7 @@ class TextEncoder:
         device: str | None = None,
         fallback: str | None = None,
     ) -> None:
+        """Elige modelo, dispositivo y respaldo. Gemma se carga en el primer ``encode``."""
         self.model_id = model_id
         self.device = resolve_device(device)
         self.fallback = _resolve_fallback(fallback)
@@ -264,6 +276,7 @@ class TextEncoder:
         return self._siglip.encode_text_siglip(rows, batch_size=batch_size)
 
     def _ensure_loaded(self) -> None:
+        """Intenta EmbeddingGemma. Si no hay acceso y el respaldo es SigLIP, cambia de backend."""
         if self._ready:
             return
         model, error = _try_load_gemma(self.model_id, self.device)
@@ -282,6 +295,7 @@ class TextEncoder:
         self._ready = True
 
     def _encode_gemma(self, texts: Sequence[str], batch_size: int) -> np.ndarray:
+        """Codifica con EmbeddingGemma y vuelve a normalizar por si el modelo no lo hizo."""
         model = self._gemma
         raw = model.encode(
             list(texts),
@@ -293,6 +307,7 @@ class TextEncoder:
         return l2_normalize(np.asarray(raw))
 
     def _width(self) -> int:
+        """Dimensión del backend activo. Cero si todavía no hay modelo cargado."""
         if self.backend == "embeddinggemma" and self._gemma is not None:
             dimension = getattr(self._gemma, "get_embedding_dimension", None)
             if callable(dimension):
@@ -304,6 +319,7 @@ class TextEncoder:
 
 
 def _resolve_fallback(fallback: str | None) -> str:
+    """Lee ``fallback`` o ``FLOWERS_TEXT_FALLBACK``. Solo admite ``siglip`` y ``error``."""
     chosen = fallback if fallback is not None else os.environ.get("FLOWERS_TEXT_FALLBACK", "siglip")
     if chosen not in {"siglip", "error"}:
         raise ValueError(
@@ -314,6 +330,7 @@ def _resolve_fallback(fallback: str | None) -> str:
 
 
 def _load_siglip(model_id: str, device: str) -> tuple[object, object]:
+    """Devuelve modelo y procesador de SigLIP, reutilizando la caché del proceso."""
     key = (model_id, device)
     cached = _SIGLIP_CACHE.get(key)
     if cached is not None:
@@ -329,6 +346,7 @@ def _load_siglip(model_id: str, device: str) -> tuple[object, object]:
 
 
 def _try_load_gemma(model_id: str, device: str) -> tuple[object | None, BaseException | None]:
+    """Carga EmbeddingGemma. Un error de acceso se recuerda; cualquier otro se propaga."""
     key = (model_id, device)
     cached = _GEMMA_CACHE.get(key)
     if cached is not None:
@@ -352,12 +370,14 @@ def _try_load_gemma(model_id: str, device: str) -> tuple[object | None, BaseExce
 def _as_items(
     paths_or_pil: str | Path | Image.Image | Sequence[str | Path | Image.Image],
 ) -> list[str | Path | Image.Image]:
+    """Acepta un solo elemento o una secuencia y siempre devuelve una lista."""
     if isinstance(paths_or_pil, (str, Path, Image.Image)):
         return [paths_or_pil]
     return list(paths_or_pil)
 
 
 def _to_rgb(item: str | Path | Image.Image) -> Image.Image:
+    """Abre una ruta o convierte una imagen PIL a RGB de tres canales."""
     if isinstance(item, Image.Image):
         return item.convert("RGB")
     with Image.open(item) as image:
@@ -365,6 +385,7 @@ def _to_rgb(item: str | Path | Image.Image) -> Image.Image:
 
 
 def _as_strings(texts: Sequence[str]) -> list[str]:
+    """Exige una secuencia de ``str``. Un string suelto se rechaza para no iterar caracteres."""
     if isinstance(texts, str):
         raise TypeError("se esperaba una lista de textos, no un str suelto")
     rows = list(texts)
@@ -374,6 +395,7 @@ def _as_strings(texts: Sequence[str]) -> list[str]:
 
 
 def _chunks(items: Sequence, batch_size: int) -> list[Sequence]:
+    """Parte ``items`` en lotes de a lo sumo ``batch_size`` elementos."""
     if batch_size < 1:
         raise ValueError(f"batch_size debe ser >= 1, llegó {batch_size}")
     return [items[start : start + batch_size] for start in range(0, len(items), batch_size)]
