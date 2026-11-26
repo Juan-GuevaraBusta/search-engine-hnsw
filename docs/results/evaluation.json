@@ -1,0 +1,373 @@
+{
+  "clasificacion": {
+    "n_consultas": 412,
+    "k": 10,
+    "ef_search": 50,
+    "accuracy_top1": 0.970873786407767,
+    "recall_at_5_clase": 0.9805825242718447,
+    "recall_hnsw_vs_exacto_at_10": 0.9985436893203883,
+    "ms_hnsw_media": 0.548541242396911,
+    "ms_hnsw_p95": 0.7230750052258371,
+    "ms_exacto_media": 2.308640310465069,
+    "speedup_exacto_sobre_hnsw": 4.208690490394509,
+    "comparaciones_hnsw_media": 413.0873786407767,
+    "comparaciones_exacto": 2334,
+    "clases": [
+      "daisy",
+      "dandelion",
+      "rose",
+      "sunflower",
+      "tulip"
+    ],
+    "matriz_confusion": [
+      [
+        74,
+        0,
+        0,
+        1,
+        0
+      ],
+      [
+        1,
+        96,
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        1,
+        69,
+        0,
+        4
+      ],
+      [
+        1,
+        0,
+        0,
+        73,
+        0
+      ],
+      [
+        0,
+        1,
+        2,
+        0,
+        88
+      ]
+    ],
+    "por_clase": {
+      "daisy": {
+        "soporte": 75,
+        "recall": 0.9866666666666667,
+        "precision": 0.961038961038961
+      },
+      "dandelion": {
+        "soporte": 97,
+        "recall": 0.9896907216494846,
+        "precision": 0.9795918367346939
+      },
+      "rose": {
+        "soporte": 75,
+        "recall": 0.92,
+        "precision": 0.971830985915493
+      },
+      "sunflower": {
+        "soporte": 74,
+        "recall": 0.9864864864864865,
+        "precision": 0.9864864864864865
+      },
+      "tulip": {
+        "soporte": 91,
+        "recall": 0.967032967032967,
+        "precision": 0.9565217391304348
+      }
+    }
+  },
+  "texto": {
+    "consultas": [
+      {
+        "consulta": "a white flower with a yellow center and thin petals",
+        "clase_esperada": "daisy",
+        "imagenes": {
+          "clase_top1": "daisy",
+          "acierto": true,
+          "confianza": 1.0
+        },
+        "documentos": {
+          "archivo_top1": "daisy2.txt",
+          "clase_top1": "daisy",
+          "sim_top1": 0.619240403175354,
+          "clases_empatadas": [
+            "daisy"
+          ],
+          "acierto": true,
+          "top": [
+            {
+              "archivo": "daisy2.txt",
+              "clase": "daisy",
+              "sim": 0.619240403175354
+            },
+            {
+              "archivo": "dandelion2.txt",
+              "clase": "dandelion",
+              "sim": 0.5091894865036011
+            },
+            {
+              "archivo": "dandelion3.txt",
+              "clase": "dandelion",
+              "sim": 0.5091894865036011
+            },
+            {
+              "archivo": "dandelion4.txt",
+              "clase": "dandelion",
+              "sim": 0.5078620314598083
+            },
+            {
+              "archivo": "sunflower2.txt",
+              "clase": "sunflower",
+              "sim": 0.505480170249939
+            }
+          ]
+        }
+      },
+      {
+        "consulta": "a tall yellow flower with a large dark center that follows the sun",
+        "clase_esperada": "sunflower",
+        "imagenes": {
+          "clase_top1": "sunflower",
+          "acierto": true,
+          "confianza": 1.0
+        },
+        "documentos": {
+          "archivo_top1": "sunflower2.txt",
+          "clase_top1": "sunflower",
+          "sim_top1": 0.6267991065979004,
+          "clases_empatadas": [
+            "sunflower"
+          ],
+          "acierto": true,
+          "top": [
+            {
+              "archivo": "sunflower2.txt",
+              "clase": "sunflower",
+              "sim": 0.6267991065979004
+            },
+            {
+              "archivo": "daisy2.txt",
+              "clase": "daisy",
+              "sim": 0.5683307647705078
+            },
+            {
+              "archivo": "dandelion4.txt",
+              "clase": "dandelion",
+              "sim": 0.5463575124740601
+            },
+            {
+              "archivo": "sunflower1.txt",
+              "clase": "sunflower",
+              "sim": 0.5351679921150208
+            },
+            {
+              "archivo": "sunflower3.txt",
+              "clase": "sunflower",
+              "sim": 0.534403383731842
+            }
+          ]
+        }
+      },
+      {
+        "consulta": "a round yellow wildflower that turns into a white puffball of seeds",
+        "clase_esperada": "dandelion",
+        "imagenes": {
+          "clase_top1": "dandelion",
+          "acierto": true,
+          "confianza": 1.0
+        },
+        "documentos": {
+          "archivo_top1": "dandelion2.txt",
+          "clase_top1": "dandelion",
+          "sim_top1": 0.6334402561187744,
+          "clases_empatadas": [
+            "dandelion"
+          ],
+          "acierto": true,
+          "top": [
+            {
+              "archivo": "dandelion2.txt",
+              "clase": "dandelion",
+              "sim": 0.6334402561187744
+            },
+            {
+              "archivo": "dandelion3.txt",
+              "clase": "dandelion",
+              "sim": 0.6334402561187744
+            },
+            {
+              "archivo": "dandelion4.txt",
+              "clase": "dandelion",
+              "sim": 0.5801093578338623
+            },
+            {
+              "archivo": "daisy2.txt",
+              "clase": "daisy",
+              "sim": 0.508209228515625
+            },
+            {
+              "archivo": "sunflower2.txt",
+              "clase": "sunflower",
+              "sim": 0.48794418573379517
+            }
+          ]
+        }
+      },
+      {
+        "consulta": "a red flower with soft velvety petals and thorns on the stem",
+        "clase_esperada": "rose",
+        "imagenes": {
+          "clase_top1": "rose",
+          "acierto": true,
+          "confianza": 0.8972259880051908
+        },
+        "documentos": {
+          "archivo_top1": "rose3.txt",
+          "clase_top1": "rose",
+          "sim_top1": 0.4755352735519409,
+          "clases_empatadas": [
+            "rose"
+          ],
+          "acierto": true,
+          "top": [
+            {
+              "archivo": "rose3.txt",
+              "clase": "rose",
+              "sim": 0.4755352735519409
+            },
+            {
+              "archivo": "tulip2.txt",
+              "clase": "tulip",
+              "sim": 0.46775346994400024
+            },
+            {
+              "archivo": "rose2.txt",
+              "clase": "rose",
+              "sim": 0.4513382315635681
+            },
+            {
+              "archivo": "daisy2.txt",
+              "clase": "daisy",
+              "sim": 0.4390144646167755
+            },
+            {
+              "archivo": "dandelion2.txt",
+              "clase": "dandelion",
+              "sim": 0.4363824129104614
+            }
+          ]
+        }
+      },
+      {
+        "consulta": "a cup-shaped spring flower on a straight stem",
+        "clase_esperada": "tulip",
+        "imagenes": {
+          "clase_top1": "tulip",
+          "acierto": true,
+          "confianza": 0.6915249944644916
+        },
+        "documentos": {
+          "archivo_top1": "tulip2.txt",
+          "clase_top1": "tulip",
+          "sim_top1": 0.5261408090591431,
+          "clases_empatadas": [
+            "tulip"
+          ],
+          "acierto": true,
+          "top": [
+            {
+              "archivo": "tulip2.txt",
+              "clase": "tulip",
+              "sim": 0.5261408090591431
+            },
+            {
+              "archivo": "daisy2.txt",
+              "clase": "daisy",
+              "sim": 0.4932073652744293
+            },
+            {
+              "archivo": "daisy3.txt",
+              "clase": "daisy",
+              "sim": 0.45458927750587463
+            },
+            {
+              "archivo": "dandelion2.txt",
+              "clase": "dandelion",
+              "sim": 0.4308475852012634
+            },
+            {
+              "archivo": "dandelion3.txt",
+              "clase": "dandelion",
+              "sim": 0.4308475852012634
+            }
+          ]
+        }
+      }
+    ],
+    "aciertos_imagenes": 5,
+    "total": 5,
+    "aciertos_documentos": 5,
+    "backend_documentos": "embeddinggemma"
+  },
+  "texto_extra": {
+    "consultas": [
+      {
+        "consulta": "a yellow flower that follows the sun",
+        "clase_esperada": "sunflower",
+        "imagenes": {
+          "clase_top1": "dandelion",
+          "acierto": false,
+          "confianza": 0.5025914991104342
+        },
+        "documentos": {
+          "archivo_top1": "sunflower2.txt",
+          "clase_top1": "sunflower",
+          "sim_top1": 0.5546082854270935,
+          "clases_empatadas": [
+            "sunflower"
+          ],
+          "acierto": true,
+          "top": [
+            {
+              "archivo": "sunflower2.txt",
+              "clase": "sunflower",
+              "sim": 0.5546082854270935
+            },
+            {
+              "archivo": "dandelion4.txt",
+              "clase": "dandelion",
+              "sim": 0.5458704233169556
+            },
+            {
+              "archivo": "sunflower4.txt",
+              "clase": "sunflower",
+              "sim": 0.5428399443626404
+            },
+            {
+              "archivo": "daisy2.txt",
+              "clase": "daisy",
+              "sim": 0.5172672271728516
+            },
+            {
+              "archivo": "sunflower1.txt",
+              "clase": "sunflower",
+              "sim": 0.5057080984115601
+            }
+          ]
+        }
+      }
+    ],
+    "aciertos_imagenes": 0,
+    "total": 1,
+    "aciertos_documentos": 1,
+    "backend_documentos": "embeddinggemma"
+  }
+}
