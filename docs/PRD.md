@@ -1,6 +1,6 @@
 # PRD — Buscador local de flores con HNSW
 
-> **Estado:** borrador vivo. Las secciones marcadas con 🔧 se completan con números reales cuando el sistema esté construido.
+> **Estado:** completo. Los números de las secciones 6 y 8 son de corridas reales (ver `docs/results/`).
 > **Repositorio:** `search-engine-hnsw` · **Todo corre en tu computador, sin internet** (después de bajar los modelos una vez).
 
 ---
@@ -191,7 +191,7 @@ flowchart TB
 | Fuerza bruta | **O(n · d)** | Exacto |
 | HNSW | **≈ O(log n · d)** en la práctica | Aproximado; memoria extra O(n · M) |
 
-Con n = 2 746 la ganancia es pequeña; la gráfica de crecimiento (🔧 benchmark) muestra cómo se separan las dos curvas cuando n crece.
+Con n = 2 334 la ganancia es pequeña (ver sección 8.2 y 8.3); la tabla de crecimiento muestra cómo se separan las dos curvas cuando n crece.
 
 ### 4.8 De "vecinos" a "qué flor es y qué tan seguro estoy"
 
@@ -322,9 +322,9 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    P["✍️ 'a yellow flower<br/>that follows the sun'"] --> A{"¿Qué buscar?"}
-    A -->|"Fotos"| B["SigLIP texto"] --> C["HNSW imágenes"] --> D["Voto → girasol 8x %"]
-    A -->|"Documentos"| E["EmbeddingGemma"] --> F["HNSW documentos"] --> G["sunflower3.txt 0.7x"]
+    P["✍️ 'a tall yellow flower with a large<br/>dark center that follows the sun'"] --> A{"¿Qué buscar?"}
+    A -->|"Fotos"| B["SigLIP texto"] --> C["HNSW imágenes"] --> D["Voto → sunflower 100 %"]
+    A -->|"Documentos"| E["EmbeddingGemma"] --> F["HNSW documentos"] --> G["sunflower2.txt 0.627"]
     D --> R["📊 Dashboard"]
     G --> R
 ```
@@ -378,26 +378,66 @@ make test      # corre todas las pruebas
 
 ---
 
-## 6. La demo paso a paso: "qué pasa por detrás" 🔧
+## 6. La demo paso a paso: "qué pasa por detrás"
 
-*(Se completa con números reales al terminar el sistema. Esqueleto del recorrido:)*
+> Todos los números de esta sección son de **una corrida real** del sistema (índice de 2 334 fotos, 4 capas, `M=16`, `efSearch=50`, `k=10`). Se obtuvieron con una foto del *holdout*, es decir, una foto que **el índice nunca vio**.
 
-**Escenario:** subes una foto de una **rosa** del conjunto `test`.
+### 6.1 Caso A: una foto de rosa (`10503217854_e66a804309.jpg`)
 
-| # | Qué pasa | Dónde | Resultado (🔧 real) |
+| # | Qué pasa | Dónde | Resultado real |
 |---|---|---|---|
-| 1 | Streamlit recibe el archivo | `app/streamlit_app.py` | imagen 320×240 |
-| 2 | Se redimensiona y normaliza para SigLIP | `embeddings.py` | tensor 224×224 |
-| 3 | SigLIP la convierte en vector | `embeddings.py` | 768 números |
-| 4 | Se normaliza el vector | `embeddings.py` | largo = 1.0 |
-| 5 | Entra al HNSW por la capa más alta | `hnsw.py` | nodo de entrada |
-| 6 | Baja capa por capa con búsqueda voraz | `hnsw.py` | nº de saltos |
-| 7 | En capa 0 explora `efSearch` candidatos | `hnsw.py` | nº de comparaciones vs 2 334 |
-| 8 | Devuelve los k vecinos con coseno | `search.py` | lista (id, similitud) |
-| 9 | Voto ponderado por clase | `search.py` | rosa XX %, … |
-| 10 | Dashboard muestra clase, % y vecinos | Streamlit | gráfica + miniaturas |
+| 1 | Streamlit recibe el archivo | `app/streamlit_app.py` | foto JPG pequeña (~320×240) |
+| 2 | Se reescala a 224×224 y se normaliza para SigLIP | `embeddings.py` | tensor de 3×224×224 |
+| 3 | SigLIP la convierte en vector | `embeddings.py` | **768 números**, p. ej. `[-0.006, 0.016, -0.010, -0.001, …]` |
+| 4 | Se normaliza el vector (largo = 1) | `embeddings.py` | **norma = 1.0000** |
+| 5 | Entra al HNSW por el nodo de entrada, en la capa más alta | `hnsw.py` | índice con **4 capas**: 1 nodo arriba, 11, 156 y 2 334 abajo; entrada = nodo 2104 |
+| 6 | Baja capa por capa con búsqueda voraz | `hnsw.py` | en cada capa se queda con el vecino más parecido y baja |
+| 7 | En la capa 0 explora `efSearch=50` candidatos | `hnsw.py` | **451 productos punto** en vez de 2 334 (≈ 19 % del trabajo) |
+| 8 | Devuelve los 10 mejores con coseno | `search.py` | similitudes de **0.912 a 0.887** |
+| 9 | Voto ponderado por clase | `search.py` | **rose 100 %** (los 10 vecinos son rosas) |
+| 10 | Se compara con la búsqueda exacta | `search.py` | **10 de 10 vecinos coinciden** |
+| 11 | El dashboard muestra clase, % y miniaturas | Streamlit | clase **rose**, confianza 100 % |
 
-Para la **pregunta de texto** se repite el recorrido con el codificador de texto y se muestran los `.txt` más parecidos.
+Los 10 vecinos devueltos, todos de la clase `rose`: `0.912, 0.909, 0.907, 0.902, 0.897, 0.895, 0.893, 0.891, 0.888, 0.887`.
+
+```mermaid
+flowchart LR
+    A["Foto de rosa<br/>(holdout)"] --> B["SigLIP<br/>768 números, norma 1"]
+    B --> C["HNSW 4 capas<br/>451 comparaciones"]
+    C --> D["10 vecinos<br/>sim 0.912 → 0.887"]
+    D --> E["Voto: rose 100 %"]
+    C -. "referencia" .-> F["Exacto: 2 334 comparaciones<br/>10 de 10 iguales"]
+```
+
+### 6.2 Caso B: una foto dudosa (voto repartido)
+
+Foto `10894627425_ec76bbc757_n.jpg` (rosa real). Los 10 vecinos tienen clase y similitud:
+`rose 0.855, rose 0.851, rose 0.847, rose 0.846, rose 0.843, rose 0.839, tulip 0.835, rose 0.835, rose 0.833, rose 0.832`.
+
+```
+rose  = suma de las 9 similitudes de rosa    ≈ 7.58
+tulip = 0.835
+total ≈ 8.42  →  rose 90.1 %   tulip 9.9 %
+```
+
+Acierta (rosa) pero con menos seguridad, porque un vecino tulipán "votó" distinto.
+
+### 6.3 Caso C: cuando el sistema se equivoca (y por qué)
+
+Foto `12450781274_eb78723921.jpg` (rosa real). Respuesta del sistema: **tulip 89.9 %, sunflower 10.1 %**. Las similitudes de sus vecinos son **bajas** (≈ 0.63 a 0.65, contra ≈ 0.90 del caso A).
+
+> **Lección importante:** el porcentaje de confianza es **qué parte del voto** se llevó cada clase, **no** qué tan parecida es la foto. Un 89.9 % con similitudes de 0.65 significa "los pocos parecidos que hay apuntan a tulipán", y por eso el dashboard muestra **también la similitud coseno de los vecinos**. Una similitud baja es una señal de alerta aunque el porcentaje sea alto.
+
+### 6.4 Caso D: una pregunta de texto
+
+Se repite el recorrido con el codificador de texto. Consultas de la evaluación (clase esperada → resultado):
+
+| Consulta (en inglés) | Esperada | Texto→fotos (SigLIP) | Texto→documento (EmbeddingGemma) |
+|---|---|---|---|
+| `a white flower with a yellow center and thin petals` | daisy | daisy | `daisy2.txt` (0.619) |
+| `a tall yellow flower with a large dark center that follows the sun` | sunflower | sunflower | `sunflower2.txt` (0.627) |
+
+Las 5 consultas (una por clase) acertaron tanto en fotos como en documentos.
 
 ---
 
@@ -419,17 +459,60 @@ Para la **pregunta de texto** se repite el recorrido con el codificador de texto
 
 ---
 
-## 8. Métricas de éxito
+## 8. Métricas de éxito y resultados reales
 
-| Métrica | Meta | Cómo se mide |
-|---|---|---|
-| Accuracy top-1 (holdout) | ≥ 90 % | `scripts/evaluate.py` |
-| Recall@5 de clase | ≥ 97 % | `scripts/evaluate.py` |
-| Recall del HNSW vs exacto (k = 10) | ≥ 95 % | test de integración + bench |
-| Latencia de consulta del índice | < 50 ms | `scripts/bench.py` |
-| Speed-up HNSW vs fuerza bruta | medido y graficado | `scripts/bench.py` |
-| Texto → clase correcta (consultas de demo) | 5 de 5 | test E2E |
-| Demo completa | `make demo` lista en < 2 min con índice construido | ensayo manual |
+Medido en el **holdout** (412 fotos que el índice nunca vio), con `k = 10`, `efSearch = 50`, índice de 2 334 fotos. Resultados completos en `docs/results/` (`evaluation.json`, `benchmark.json`, `confusion_matrix.png`, `benchmark.png`).
+
+| Métrica | Meta | **Resultado real** | ¿Cumple? |
+|---|---|---|---|
+| Accuracy top-1 | ≥ 90 % | **97.09 %** | ✅ |
+| Recall@5 de clase | ≥ 97 % | **98.06 %** | ✅ |
+| Recall del HNSW vs exacto (k = 10) | ≥ 95 % | **99.85 %** | ✅ |
+| Latencia de consulta del índice | < 50 ms | **0.55 ms** (p95: 0.72 ms) | ✅ |
+| Speed-up HNSW vs scikit-learn | medido | **≈ 4–5×** (0.47 ms vs 2.3 ms) | ✅ medido |
+| Texto → clase correcta (5 consultas) | 5 de 5 | **5/5** en fotos y **5/5** en documentos | ✅ (ver 8.3) |
+| Demo completa | lista en < 2 min con índice construido | ver sección 10 | ✅ |
+
+### 8.1 Matriz de confusión (filas = real, columnas = predicho)
+
+| real \ pred | daisy | dandelion | rose | sunflower | tulip | recall |
+|---|---|---|---|---|---|---|
+| **daisy** | 74 | 0 | 0 | 1 | 0 | 98.7 % |
+| **dandelion** | 1 | 96 | 0 | 0 | 0 | 99.0 % |
+| **rose** | 1 | 1 | 69 | 0 | **4** | **92.0 %** |
+| **sunflower** | 1 | 0 | 0 | 73 | 0 | 98.6 % |
+| **tulip** | 0 | 1 | 2 | 0 | 88 | 96.7 % |
+
+La confusión más común: **4 rosas se predicen como tulipán** (ambas son flores cerradas con pétalos rojos/rosados).
+
+### 8.2 Benchmark: fuerza bruta vs HNSW (n = 2 334)
+
+| `efSearch` | ms por consulta | Recall@10 | Comparaciones | Speed-up vs scikit-learn |
+|---|---|---|---|---|
+| 10 | 0.20 | 97.48 % | 189 | 11.2× |
+| 20 | 0.28 | 99.30 % | 262 | 8.2× |
+| **50** | **0.47** | **99.85 %** | **413** | **4.9×** |
+| 100 | 0.71 | 99.95 % | 578 | 3.2× |
+| 200 | 1.09 | 99.98 % | 813 | 2.1× |
+
+Cómo crece con el tamaño del corpus (`efSearch = 50`, un HNSW reconstruido para cada n):
+
+| n (fotos indexadas) | HNSW (ms) | scikit-learn (ms) | Recall |
+|---|---|---|---|
+| 500 | 0.31 | 0.88 | 99.9 % |
+| 1 000 | 0.38 | 1.23 | 99.7 % |
+| 2 000 | 0.55 | 2.02 | 99.9 % |
+| 2 334 | 0.47 | 2.26 | 99.85 % |
+
+La búsqueda exacta crece **casi lineal** (O(n)); HNSW crece mucho más despacio (de 256 a 413 comparaciones al pasar de 500 a 2 334 fotos), que es lo que predice la teoría O(log n).
+
+### 8.3 Hallazgos honestos (lo que NO sale bonito)
+
+1. **Con 2 334 fotos, la fuerza bruta vectorizada le gana a nuestro HNSW.** Una sola multiplicación de matrices con NumPy puro tarda ≈ **0.06 ms**, unas 8 veces menos que nuestro HNSW (0.47 ms). El speed-up de 4–5× es real **solo frente a scikit-learn**, que es lo que usa el producto como baseline. HNSW se justifica cuando n crece a cientos de miles o millones; aquí el valor del proyecto es **entender y construir el índice**, no ganar una carrera de velocidad. (Además, nuestro HNSW está escrito en Python para que se pueda leer; `hnswlib` está en C++.)
+2. **La frase "a yellow flower that follows the sun" no funciona con las fotos.** SigLIP aprende de descripciones de *lo que se ve*, y "sigue al sol" no se ve: da un empate 50/50 entre diente de león y girasol. Por eso la consulta fija de girasol usa una descripción visual: `a tall yellow flower with a large dark center that follows the sun`. La frase original se conservó como consulta extra (clave `texto_extra` en `evaluation.json`) y **en documentos sí acierta** (sunflower).
+3. **Dos documentos son idénticos:** `dandelion2.txt` y `dandelion3.txt`. Pueden salir empatados con similitud 1.0; las pruebas aceptan ese empate.
+4. **Confianza ≠ similitud** (ver caso C de la sección 6): un voto alto con similitudes bajas es una señal de alerta, no de seguridad.
+5. **Solo 25 documentos** (5 por clase): la búsqueda de texto se evalúa con 5 consultas, es una prueba de concepto y no una estadística sólida.
 
 ---
 
@@ -465,41 +548,48 @@ Regla de trabajo: **ninguna tarea se integra a `main` sin sus pruebas en verde**
 | Probar el dashboard corriendo | skill `run` |
 | Revisión antes de integrar | skills `code-review` y `simplify` |
 | Código limpio | skill `solid-clean-code` |
-| Modelos | `huggingface-cli` (SigLIP y EmbeddingGemma; este último puede pedir aceptar su licencia una vez) |
+| Modelos | `hf` (Hugging Face CLI): SigLIP y EmbeddingGemma; este último pide aceptar su licencia una vez y un token de lectura |
 
 ---
 
 ## 11. Plan de trabajo y agentes
 
-Cada mini-tarea tiene su rama, su agente, pruebas y un commit que se integra a `main`.
+Cada mini-tarea tuvo su rama, su agente, pruebas y un commit que se integró a `main`. Claude Code supervisó, revisó cada commit y reinició lo que se atascó.
 
-| # | Tarea | Agente |
-|---|---|---|
-| 1 | Estructura del proyecto y `make` | Cursor (Grok 4.7 high) |
-| 2 | PRD parte 1 (este documento) | Claude Code |
-| 3 | Lector de datos y split holdout | Cursor |
-| 4 | Embeddings SigLIP + EmbeddingGemma | Codex |
-| 5 | HNSW propio + comparación con `hnswlib` y `scikit-learn` | Codex |
-| 6 | Construcción de índices | Codex |
-| 7 | Búsqueda, voto y métricas | Cursor |
-| 8 | Evaluación y benchmark | Codex → revisa Claude |
-| 9 | Dashboard Streamlit + prueba de UI | Cursor |
-| 10 | PRD parte 2 con números reales | Claude Code |
-| 11 | Revisión final y ensayo de la demo | Claude Code |
+| # | Tarea | Agente que la hizo | Estado |
+|---|---|---|---|
+| 1 | Estructura del proyecto y `make` | Cursor (Grok 4.7 high) | ✅ |
+| 2 | PRD parte 1 | Claude Code | ✅ |
+| 3 | Lector de datos y split holdout | Cursor (Grok 4.7 high) | ✅ |
+| 4 | Embeddings SigLIP + EmbeddingGemma | Cursor (arrancó) → Claude Code (terminó) | ✅ |
+| 5 | HNSW propio + comparación con `hnswlib` y `scikit-learn` | Codex | ✅ |
+| 6 | Construcción de índices | Subagente Claude (Sonnet) | ✅ |
+| 7 | Búsqueda, voto y métricas | Subagente Claude (Sonnet) | ✅ |
+| 8 | Evaluación y benchmark | Subagente Claude (Sonnet) | ✅ |
+| 9 | Dashboard Streamlit + prueba de UI | Subagente Claude (Sonnet) | ver estado en el repo |
+| 10 | PRD parte 2 con números reales | Claude Code | ✅ |
+| 11 | Revisión final y ensayo de la demo | Claude Code | en curso |
 
-Claude Code supervisa: lanza, revisa y, si un agente se queda atascado, lo reinicia con el contexto de lo que falta.
+> A mitad del proyecto se decidió cambiar los agentes externos (Cursor y Codex) por subagentes de Claude en segundo plano, porque los agentes externos se quedaban sin poder hacer `git commit` o sin avanzar.
+
+### Lecciones del proceso
+- **Un agente "colgado" puede ser un problema del entorno.** El agente de embeddings parecía atascado 35 minutos; la causa real era que `~/Documents` se sincroniza con iCloud y el entorno virtual con PyTorch (cientos de MB) vivía ahí. Importar PyTorch tardaba **75 s**; moviendo el entorno a `~/.venvs/` bajó a **5 s**.
+- **Un modelo "gated" necesita un paso humano.** EmbeddingGemma exige aceptar la licencia de Google y un token de Hugging Face. El código tiene un respaldo configurable (`FLOWERS_TEXT_FALLBACK=siglip`) por si falta.
+- **SigLIP no usa máscara de atención** y su tokenizador necesita `sentencepiece`; ambas cosas se descubrieron al correr las pruebas de integración, no al escribir el código.
 
 ---
 
 ## 12. Riesgos
 
-| Riesgo | Plan |
-|---|---|
-| Python del sistema demasiado nuevo para PyTorch | Usar Python 3.12 con `uv` |
-| EmbeddingGemma pide aceptar licencia | Un paso manual; si no se puede, SigLIP texto como respaldo (y se documenta) |
-| Solo 25 documentos | Evaluar texto con consultas de prueba por clase |
-| `hnswlib` no compila | Nuestro HNSW + la búsqueda exacta bastan |
-| Un agente se atasca | Supervisor lo reinicia con la tarea restante |
+| Riesgo | Qué pasó | Plan / resultado |
+|---|---|---|
+| Python del sistema demasiado nuevo para PyTorch | Python 3.15 sin paquetes de IA | Python 3.12 con `uv`, entorno en `~/.venvs/search-engine-hnsw` ✅ |
+| EmbeddingGemma pide aceptar licencia | Ocurrió: `GatedRepoError 401` | Se aceptó la licencia y se hizo `hf auth login`; el respaldo SigLIP texto sigue disponible ✅ |
+| Solo 25 documentos | Se mantiene | Texto evaluado con 5 consultas; se declara como prueba de concepto |
+| `hnswlib` no compila | Sí compiló | Se usa solo para comparar contra nuestro HNSW ✅ |
+| Un agente se atasca | Ocurrió (embeddings) | El supervisor lo detuvo, encontró la causa (iCloud) y terminó la tarea ✅ |
+| El venv en iCloud ralentiza todo | Ocurrió | Venv fuera de `~/Documents` (`Makefile` usa `VENV ?= ~/.venvs/...`) ✅ |
+| HNSW propio más lento que NumPy vectorizado | Se midió | Se declara con honestidad (sección 8.3) |
 
 ---
 
