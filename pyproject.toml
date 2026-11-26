@@ -32,3 +32,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: corpus real en Downloads; se omite si no está",
+]
