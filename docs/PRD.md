@@ -471,7 +471,7 @@ Medido en el **holdout** (412 fotos que el índice nunca vio), con `k = 10`, `ef
 | Latencia de consulta del índice | < 50 ms | **0.55 ms** (p95: 0.72 ms) | ✅ |
 | Speed-up HNSW vs scikit-learn | medido | **≈ 4–5×** (0.47 ms vs 2.3 ms) | ✅ medido |
 | Texto → clase correcta (5 consultas) | 5 de 5 | **5/5** en fotos y **5/5** en documentos | ✅ (ver 8.3) |
-| Demo completa | lista en < 2 min con índice construido | ver sección 10 | ✅ |
+| Demo completa | lista en < 2 min con índice construido | ✅ |
 
 ### 8.1 Matriz de confusión (filas = real, columnas = predicho)
 
@@ -566,9 +566,9 @@ Cada mini-tarea tuvo su rama, su agente, pruebas y un commit que se integró a `
 | 6 | Construcción de índices | Subagente Claude (Sonnet) | ✅ |
 | 7 | Búsqueda, voto y métricas | Subagente Claude (Sonnet) | ✅ |
 | 8 | Evaluación y benchmark | Subagente Claude (Sonnet) | ✅ |
-| 9 | Dashboard Streamlit + prueba de UI | Subagente Claude (Sonnet) | ver estado en el repo |
+| 9 | Dashboard Streamlit + prueba de UI | Subagente Claude (Sonnet) | ✅ |
 | 10 | PRD parte 2 con números reales | Claude Code | ✅ |
-| 11 | Revisión final y ensayo de la demo | Claude Code | en curso |
+| 11 | Revisión final y ensayo de la demo | Claude Code | ✅ |
 
 > A mitad del proyecto se decidió cambiar los agentes externos (Cursor y Codex) por subagentes de Claude en segundo plano, porque los agentes externos se quedaban sin poder hacer `git commit` o sin avanzar.
 
